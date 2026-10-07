@@ -26,6 +26,29 @@ func main() {
 	}
 	log.Println("✅ Connected to Database successfully!")
 
+	// Safe table creation query so it never fails if tables already exist
+	query := `
+	CREATE TABLE IF NOT EXISTS admins (
+		id SERIAL PRIMARY KEY,
+		username VARCHAR(255) UNIQUE NOT NULL,
+		password_hash VARCHAR(255) NOT NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS products (
+		id SERIAL PRIMARY KEY,
+		name VARCHAR(255) NOT NULL,
+		description TEXT,
+		price NUMERIC(10, 2) NOT NULL,
+		stock_count INT NOT NULL DEFAULT 0,
+		image_url TEXT NOT NULL
+	);
+	`
+	_, err = db.Exec(query)
+	if err != nil {
+		log.Fatal("Failed to create tables: ", err)
+	}
+	log.Println("✅ Tables verified/created successfully!")
+
 	// Purane admins clear karo
 	_, err = db.Exec("DELETE FROM admins")
 	if err != nil {

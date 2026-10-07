@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Navbar -->
+    <nav class="bg-gray-900 text-white p-4 shadow-md flex justify-between items-center">
+        <h1 class="text-2xl font-bold">⚙️ Admin Dashboard</h1>
+        <div>
+            <a href="/" target="_blank" class="text-blue-300 hover:text-white underline mr-4">View Storefront</a>
+            <button id="logoutBtn" onclick="logout()" class="hidden bg-red-500 px-3 py-1 rounded text-sm font-bold">Logout</button>
+        </div>
+    </nav>
+
+    <!-- Login Section -->
+    <div id="loginSection" class="container mx-auto mt-20 max-w-sm bg-white p-8 rounded-lg shadow-md">
+        <h2 class="text-xl font-bold mb-6 text-center">Admin Login</h2>
+        <form onsubmit="login(event)">
+            <input type="text" id="username" placeholder="Username" required class="w-full px-3 py-2 border rounded mb-4">
+            <input type="password" id="password" placeholder="Password" required class="w-full px-3 py-2 border rounded mb-6">
+            <button type="submit" class="w-full bg-gray-900 text-white font-bold py-2 rounded hover:bg-gray-800">Login</button>
+        </form>
+    </div>
+
+    <!-- Dashboard Section (Hidden by default) -->
+    <div id="dashboardSection" class="hidden container mx-auto mt-10 p-4 grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Upload Form -->
+        <div class="bg-white p-6 rounded-lg shadow-md h-fit">
+            <h2 class="text-xl font-bold mb-4 border-b pb-2">Add New Product</h2>
+            <form id="productForm" onsubmit="uploadProduct(event)">
+                <input type="text" name="name" placeholder="Product Name" required class="w-full px-3 py-2 border rounded mb-4">
+                <textarea name="description" placeholder="Description" rows="2" class="w-full px-3 py-2 border rounded mb-4"></textarea>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <input type="number" name="price" step="0.01" placeholder="Price (₹)" required class="w-full px-3 py-2 border rounded">
+                    <input type="number" name="stock_count" placeholder="Stock" required class="w-full px-3 py-2 border rounded">
+                </div>
+                <input type="file" name="image" accept="image/*" required class="w-full px-3 py-2 border rounded bg-gray-50 mb-4">
+                <button type="submit" id="submitBtn" class="w-full bg-blue-600 text-white font-bold py-2 rounded">Upload</button>
+            </form>
+        </div>
+
+        <!-- Inventory List -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-bold mb-4 border-b pb-2">Current Inventory</h2>
+            <table class="w-full text-left border-collapse">
+                <tbody id="inventory-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Clear storage once on fresh open if no active valid session, or handle login state fresh
+        const token = localStorage.getItem('admin_token');
+
+        // Check login status on page load
+        if (token) {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.remove('hidden');
+            document.getElementById('logoutBtn').classList.remove('hidden');
+            fetchInventory();
+        }
+
+        async function login(event) {
+            event.preventDefault();
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+
+            const res = await fetch('/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: u, password: p })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                localStorage.setItem('admin_token', data.token);
+                location.reload();
+            } else {
+                alert('❌ Invalid Credentials');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('admin_token');
+            location.reload();
+        }
+
+        function getAuthHeaders(isFormData = false) {
+            const headers = { 'Authorization': 'Bearer ' + localStorage.getItem('admin_token') };
+            if (!isFormData) headers['Content-Type'] = 'application/json';
+            return headers;
+        }
+
+        async function uploadProduct(event) {
+            event.preventDefault();
+            document.getElementById('submitBtn').innerText = "Uploading...";
+            
+            const formData = new FormData(document.getElementById('productForm'));
+            const res = await fetch('/admin/products', {
+                method: 'POST',
+                headers: getAuthHeaders(true),
+                body: formData
+            });
+
+            if (res.ok) {
+                alert('✅ Product added!');
+                document.getElementById('productForm').reset();
+                fetchInventory();
+            } else {
+                alert('❌ Upload failed.');
+            }
+            document.getElementById('submitBtn').innerText = "Upload";
+        }
+
+        async function fetchInventory() {
+            const res = await fetch('/admin/products', { headers: getAuthHeaders() });
+            if (!res.ok) {
+                if (res.status === 401) logout();
+                return;
+            }
+            const products = await res.json();
+            const tbody = document.getElementById('inventory-table-body');
+            tbody.innerHTML = '';
+
+            if (!products || products.length === 0) return tbody.innerHTML = '<tr><td>No products.</td></tr>';
+
+            products.forEach(p => {
+                tbody.innerHTML += `
+                    <tr class="border-b">
+                        <td class="p-2"><img src="${p.image_url}" class="w-10 h-10 object-cover rounded"></td>
+                        <td class="p-2 font-semibold">${p.name}</td>
+                        <td class="p-2"><input type="number" id="stock-${p.id}" value="${p.stock_count}" class="w-16 border rounded px-1"></td>
+                        <td class="p-2"><button onclick="updateStock(${p.id})" class="bg-green-500 text-white px-2 py-1 rounded text-sm">Save</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function updateStock(id) {
+            const newStock = document.getElementById(`stock-${id}`).value;
+            const res = await fetch(`/admin/products/${id}/stock`, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ stock_count: parseInt(newStock) })
+            });
+            if (res.ok) alert('✅ Stock updated!');
+            else alert('❌ Update failed.');
+        }
+    </script>
+</body>
+</html>

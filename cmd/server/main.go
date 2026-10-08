@@ -18,20 +18,17 @@ import (
 )
 
 func main() {
-	// 1. Connect to Database (using port 6432 as resolved earlier)
+	// 1. Connect to Database
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		dsn = "postgres://admin:password@localhost:6432/store_db?sslmode=disable"
 	}
 
 	// Ensure sslmode is required for external connections (like Render)
-	// If using an internal Render URL, this might need to be removed or handled differently.
-	// However, usually, Render requires sslmode=require for connections.
 	if !strings.Contains(dsn, "sslmode=") {
 		if strings.Contains(dsn, "localhost") {
 			dsn += "?sslmode=disable"
 		} else {
-			// Determine if it needs ? or &
 			if strings.Contains(dsn, "?") {
 				dsn += "&sslmode=require"
 			} else {
@@ -91,15 +88,17 @@ func main() {
 	// Public API Routes
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/products", productHandler.GetAvailableProducts)
-		r.Delete("/api/products/{id}", productHandler.DeleteProduct)
 	})
 
 	// Admin API Routes
 	r.Route("/admin", func(r chi.Router) {
 		r.Post("/login", adminHandler.Login)
-		r.Get("/products", productHandler.GetAllProducts) // Added for Inventory Management
+		r.Get("/products", productHandler.GetAllProducts) // Inventory Management
 		r.Post("/products", productHandler.AddProduct)
 		r.Put("/products/{id}/stock", productHandler.UpdateStock)
+
+		// Yahan humne DELETE route ko theek path par add kiya hai
+		r.Delete("/products/{id}", productHandler.DeleteProduct)
 	})
 
 	// 7. Start Server

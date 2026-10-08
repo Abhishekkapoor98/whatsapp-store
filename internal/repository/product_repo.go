@@ -98,9 +98,8 @@ func (r *productRepo) UpdateStock(ctx context.Context, id int32, count int32) (*
 }
 
 func (r *productRepo) Delete(ctx context.Context, id int32) error {
-	// Hum direct database object (r.q.db) se raw query run kar rahe hain
-	// taaki sqlc generate ki zaroorat na pade.
 	query := `DELETE FROM products WHERE id = $1`
+	// Execute raw SQL query directly bypassing generated sqlc methods
 	_, err := r.q.db.ExecContext(ctx, query, id)
 	return err
 }

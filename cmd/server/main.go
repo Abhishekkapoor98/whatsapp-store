@@ -91,6 +91,7 @@ func main() {
 	// Public API Routes
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/products", productHandler.GetAvailableProducts)
+		r.Delete("/api/products/{id}", productHandler.DeleteProduct)
 	})
 
 	// Admin API Routes

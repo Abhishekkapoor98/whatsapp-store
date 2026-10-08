@@ -124,3 +124,22 @@ func (h *ProductHandler) UpdateStock(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updatedProduct)
 }
+
+// DeleteProduct handles the HTTP DELETE request to remove a product
+func (h *ProductHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		return
+	}
+
+	err = h.productUsecase.RemoveProduct(r.Context(), int32(id))
+	if err != nil {
+		http.Error(w, "Failed to delete product", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"message": "Product deleted successfully"}`))
+}
